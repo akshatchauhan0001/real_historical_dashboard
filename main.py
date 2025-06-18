@@ -15,6 +15,17 @@ client = gspread.authorize(creds)
 sheet = client.open("meta_data_fetching").worksheet("Final_Meta_Dashboard_Data")
 data = pd.DataFrame(sheet.get_all_records())
 
+# === CREATE TOTAL PURCHASES COLUMN ===
+data['Website purchases'] = pd.to_numeric(data.get('Website purchases', 0), errors='coerce')
+data['Mobile app purchases'] = pd.to_numeric(data.get('Mobile app purchases', 0), errors='coerce')
+data['Omni purchase (shared item)'] = pd.to_numeric(data.get('Omni purchase (shared item)', 0), errors='coerce')
+
+data['Total Purchases'] = (
+    data['Website purchases'].fillna(0)
+    + data['Mobile app purchases'].fillna(0)
+    + data['Omni purchase (shared item)'].fillna(0)
+)
+
 # === STREAMLIT SETUP ===
 st.set_page_config(page_title="Meta Ads Dashboard", layout="wide")
 st.title("Meta Ads Real-Time & Historical Dashboard")
@@ -73,9 +84,9 @@ st.plotly_chart(fig_eng, use_container_width=True)
 
 # === 4. Conversion Metrics ===
 st.subheader("4. Conversion Metrics")
-conv_cols = ["On-Facebook purchases", "Website adds to cart", "On-Facebook view content",
-             "On-Facebook leads", "Landing page views", "Cost per website purchase",
-             "Cost per website add to cart"]
+conv_cols = ["Website adds to cart", "Omni adds to cart (shared item)", "Landing page views",
+             "On-Facebook leads", "On-Facebook view content", "Cost per website purchase",
+             "Cost per website add to cart", "Total Purchases"]
 conv_df = filtered_data[conv_cols].apply(pd.to_numeric, errors='coerce')
 st.dataframe(conv_df.sum().to_frame(name="Total"))
 
@@ -101,9 +112,9 @@ demo_df = filtered_data.groupby(['Age', 'Gender']).agg({
     'Cost': lambda x: pd.to_numeric(x, errors='coerce').sum(),
     'Reach': lambda x: pd.to_numeric(x, errors='coerce').sum(),
     'Impressions': lambda x: pd.to_numeric(x, errors='coerce').sum(),
-    'On-Facebook purchases': lambda x: pd.to_numeric(x, errors='coerce').sum()
+    'Total Purchases': lambda x: pd.to_numeric(x, errors='coerce').sum()
 }).reset_index()
-fig_demo = px.bar(demo_df, x='Age', y='On-Facebook purchases', color='Gender', barmode='group')
+fig_demo = px.bar(demo_df, x='Age', y='Total Purchases', color='Gender', barmode='group')
 st.plotly_chart(fig_demo, use_container_width=True)
 
 # === 8. Top Campaigns by ROAS ===
@@ -117,9 +128,9 @@ camp_perf = camp_perf.sort_values(by='ROAS', ascending=False)
 st.dataframe(camp_perf.head(10))
 
 # === 9. Cost per Purchase ===
-st.subheader("9. Cost per Purchase")
+st.subheader("9. Cost per Total Purchase (Website + App + Omni)")
 cpp_df = filtered_data.copy()
 cpp_df['Cost'] = pd.to_numeric(cpp_df['Cost'], errors='coerce')
-cpp_df['On-Facebook purchases'] = pd.to_numeric(cpp_df['On-Facebook purchases'], errors='coerce')
-cpp_df['Cost per Purchase'] = cpp_df['Cost'] / cpp_df['On-Facebook purchases'].replace(0, pd.NA)
-st.dataframe(cpp_df[['Campaign name', 'Cost', 'On-Facebook purchases', 'Cost per Purchase']].dropna())
+cpp_df['Total Purchases'] = pd.to_numeric(cpp_df['Total Purchases'], errors='coerce')
+cpp_df['Cost per Purchase'] = cpp_df['Cost'] / cpp_df['Total Purchases'].replace(0, pd.NA)
+st.dataframe(cpp_df[['Campaign name', 'Cost', 'Total Purchases', 'Cost per Purchase']].dropna())
