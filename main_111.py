@@ -7,7 +7,13 @@ import plotly.express as px
 
 # === GOOGLE SHEETS SETUP ===
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_name("/content/dashboard1-463207-1a30e1730fbc.json", scope)
+
+# creds = ServiceAccountCredentials.from_json_keyfile_name("/content/dashboard1-463207-1a30e1730fbc.json", scope)
+
+# Load the credentials from a secret environment variable
+service_account_info = json.loads(os.environ["GCP_SERVICE_ACCOUNT"])
+creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, scope)
+
 client = gspread.authorize(creds)
 sheet = client.open("meta_data_fetching").worksheet("Final_Meta_Dashboard_Data")
 data = pd.DataFrame(sheet.get_all_records())
